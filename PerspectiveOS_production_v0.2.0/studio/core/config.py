@@ -24,4 +24,18 @@ IMAGE_TYPES = [
     "Reel",
 ]
 
+AI_VISIBILITY_OPTIONS = [
+    "orthosis",
+    "diaper",
+    "both",
+    "subtle",
+    "none",
+]
+
+FORMAT_OPTIONS = [
+    "Feed 4:5",
+    "Story 9:16",
+    "Reel Cover",
+]
+
 REQUIRED_DOCUMENTS = list(ProjectSettings().required_knowledge_documents)

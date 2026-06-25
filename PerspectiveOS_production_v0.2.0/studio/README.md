@@ -1,8 +1,8 @@
-# Perspective Studio v0.2
+# Perspective Studio v0.3
 
 Perspective Studio is a small Streamlit application for generating PerspectiveOS production briefs.
 
-Version 0.2 is context-aware. It reads repository documentation from `creative/`, `visual/`, and `persona/` and uses deterministic template logic to create briefs. It does not call AI APIs.
+Version 0.3 is a production folder pipeline. It reads repository documentation from `creative/`, `visual/`, and `persona/` and uses deterministic template logic to create complete production folders. It does not call AI APIs.
 
 ## Setup
 
@@ -19,33 +19,43 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-## Generated Briefs
+## Generated Production Folders
 
-When `Generate Brief` is clicked, the app creates a Markdown file in:
+When `Generate Brief` is clicked, the app creates a production folder in:
 
 ```text
 studio/generated/
 ```
 
-Generated files use this naming format:
+Generated folders use this naming format:
 
 ```text
-YYYY-MM-DD_topic.md
+YYYY-MM-DD_slug/
 ```
 
-Each generated file includes:
+Each generated folder includes:
 
-- Production Brief
+- `brief.md`
+- `caption.md`
+- `carousel.md`
+- `image_prompt.md`
+- `video_prompt.md`
+- `comments.md`
+- `checklist.md`
+- `metadata.json`
+
+## Create New Post Fields
+
+The main form supports:
+
 - Topic
-- Message
-- Visual Idea
-- Hook
-- Caption
-- Hashtags
-- CTA
-- Comment Strategy
-- Image Prompt
-- Video Prompt
+- Target Emotion
+- Image Type
+- Location
+- Outfit
+- Aid visibility
+- Metaphor
+- Format
 
 ## Repository Knowledge
 
@@ -75,7 +85,7 @@ Perspective Studio is organized as a modular creator operating system:
 - `brain/`: knowledge indexing over repository documentation
 - `creative/`: deterministic production brief generation
 - `image/`: asset registry for future image assets and metadata
-- `production/`: workflow package for future production orchestration
+- `production/`: production request models, artifact generators, and folder pipeline
 - `analytics/`: local post-performance storage
 
 Implemented service classes:
@@ -86,3 +96,6 @@ Implemented service classes:
 - `BriefGenerator`
 - `AssetRegistry`
 - `AnalyticsStore`
+- `ProductionArtifactGenerator`
+- `ProductionFolderPipeline`
+- `ProductionRequest`
