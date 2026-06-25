@@ -1,8 +1,12 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from core.scanner import RepositoryScanner
-from core.settings import ProjectSettings
+try:
+    from ..core.scanner import RepositoryScanner
+    from ..core.settings import ProjectSettings
+except ImportError:
+    from core.scanner import RepositoryScanner
+    from core.settings import ProjectSettings
 
 
 @dataclass(frozen=True)

@@ -1,9 +1,14 @@
 from datetime import date
 from pathlib import Path
 
-from brain.index import IndexedKnowledge
-from core.settings import ProjectSettings
-from core.storage import slugify
+try:
+    from ..brain.index import IndexedKnowledge
+    from ..core.settings import ProjectSettings
+    from ..core.storage import slugify
+except ImportError:
+    from brain.index import IndexedKnowledge
+    from core.settings import ProjectSettings
+    from core.storage import slugify
 from .artifacts import ProductionArtifactGenerator
 from .models import ProductionFolder, ProductionRequest
 

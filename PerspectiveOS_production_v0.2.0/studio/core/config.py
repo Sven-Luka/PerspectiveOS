@@ -24,13 +24,16 @@ IMAGE_TYPES = [
     "Reel",
 ]
 
-AI_VISIBILITY_OPTIONS = [
+AID_VISIBILITY_OPTIONS = [
     "orthosis",
     "diaper",
     "both",
     "subtle",
     "none",
 ]
+
+# Backward-compatible alias for earlier v0.3 imports.
+AI_VISIBILITY_OPTIONS = AID_VISIBILITY_OPTIONS
 
 FORMAT_OPTIONS = [
     "Feed 4:5",

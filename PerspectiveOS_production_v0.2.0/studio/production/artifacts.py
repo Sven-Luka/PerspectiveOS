@@ -1,9 +1,14 @@
 import json
 from datetime import datetime
 
-from brain.index import IndexedKnowledge
-from core.knowledge import blockquotes, bullets, first_sentence
-from creative.brief_generator import BriefGenerator, TOPIC_PROFILES
+try:
+    from ..brain.index import IndexedKnowledge
+    from ..core.knowledge import blockquotes, bullets, first_sentence
+    from ..creative.brief_generator import BriefGenerator, TOPIC_PROFILES
+except ImportError:
+    from brain.index import IndexedKnowledge
+    from core.knowledge import blockquotes, bullets, first_sentence
+    from creative.brief_generator import BriefGenerator, TOPIC_PROFILES
 from .models import ProductionRequest
 
 

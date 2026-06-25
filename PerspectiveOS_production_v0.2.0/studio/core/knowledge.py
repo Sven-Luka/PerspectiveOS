@@ -2,7 +2,10 @@ from dataclasses import dataclass
 from pathlib import Path
 import re
 
-from brain.index import KnowledgeIndex
+try:
+    from ..brain.index import KnowledgeIndex
+except ImportError:
+    from brain.index import KnowledgeIndex
 from .settings import ProjectSettings
 
 

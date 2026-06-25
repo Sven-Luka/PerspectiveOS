@@ -3,7 +3,10 @@ from datetime import datetime
 import json
 from pathlib import Path
 
-from core.settings import ProjectSettings
+try:
+    from ..core.settings import ProjectSettings
+except ImportError:
+    from core.settings import ProjectSettings
 
 
 @dataclass(frozen=True)

@@ -16,7 +16,19 @@ pip install -r requirements.txt
 ## Run
 
 ```bash
+cd studio
 streamlit run app.py
+```
+
+Do not run Streamlit as an automated verification step because it starts a persistent server.
+
+## Verification
+
+Use only non-persistent checks:
+
+```bash
+python -m compileall studio
+python -c "import studio.app"
 ```
 
 ## Generated Production Folders

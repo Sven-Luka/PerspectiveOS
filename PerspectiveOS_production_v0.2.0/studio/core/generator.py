@@ -1,5 +1,9 @@
-from brain.index import IndexedKnowledge
-from creative.brief_generator import BriefGenerator, TopicProfile
+try:
+    from ..brain.index import IndexedKnowledge
+    from ..creative.brief_generator import BriefGenerator, TopicProfile
+except ImportError:
+    from brain.index import IndexedKnowledge
+    from creative.brief_generator import BriefGenerator, TopicProfile
 
 
 def build_brief(

@@ -1,8 +1,13 @@
 import streamlit as st
 
-from core.config import AI_VISIBILITY_OPTIONS, FORMAT_OPTIONS, IMAGE_TYPES, TARGET_EMOTIONS, TOPICS
-from core.knowledge import load_repository_knowledge
-from production import ProductionFolderPipeline, ProductionRequest
+try:
+    from .core.config import AID_VISIBILITY_OPTIONS, FORMAT_OPTIONS, IMAGE_TYPES, TARGET_EMOTIONS, TOPICS
+    from .core.knowledge import load_repository_knowledge
+    from .production import ProductionFolderPipeline, ProductionRequest
+except ImportError:
+    from core.config import AID_VISIBILITY_OPTIONS, FORMAT_OPTIONS, IMAGE_TYPES, TARGET_EMOTIONS, TOPICS
+    from core.knowledge import load_repository_knowledge
+    from production import ProductionFolderPipeline, ProductionRequest
 
 
 st.set_page_config(page_title="Perspective Studio", page_icon="PS", layout="centered")
@@ -39,7 +44,7 @@ with st.form("create_new_post"):
     image_type = st.selectbox("Image Type", IMAGE_TYPES)
     location = st.text_input("Location")
     outfit = st.text_input("Outfit")
-    aid_visibility = st.selectbox("Aid visibility", AI_VISIBILITY_OPTIONS, index=3)
+    aid_visibility = st.selectbox("Aid visibility", AID_VISIBILITY_OPTIONS, index=3)
     metaphor = st.text_input("Metaphor")
     format_name = st.selectbox("Format", FORMAT_OPTIONS)
 

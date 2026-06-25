@@ -1,7 +1,11 @@
 from dataclasses import dataclass
 
-from brain.index import IndexedKnowledge
-from core.knowledge import blockquotes, bullets, first_sentence
+try:
+    from ..brain.index import IndexedKnowledge
+    from ..core.knowledge import blockquotes, bullets, first_sentence
+except ImportError:
+    from brain.index import IndexedKnowledge
+    from core.knowledge import blockquotes, bullets, first_sentence
 
 
 @dataclass(frozen=True)
