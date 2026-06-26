@@ -13,6 +13,9 @@ class ProductionRequest:
     aid_visibility: str = "subtle"
     metaphor: str = ""
     format_name: str = "Feed 4:5"
+    free_story: str = ""
+    include_outfit_tip: bool = False
+    outfit_source_url: str = ""
 
     @property
     def requested_metaphor(self) -> str:

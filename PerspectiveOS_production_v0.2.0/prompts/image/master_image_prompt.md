@@ -8,7 +8,7 @@ Die Szene zeigt eine reale Alltagssituation. Keine Hochglanzoptik, keine perfekt
 Normale Figur, etwas breitere Schultern, leicht kräftiger Oberkörper, flache Brust, leicht androgyne Silhouette mit femininen Outfit-Aspekten. Dunkelblonde glatte Haare im hohen Pferdeschwanz, Gesicht nicht sichtbar.
 
 ## Orthese
-Linkes Bein der Person trägt eine schwarze/dunkelblaue Bauerfeind-ähnliche Knieorthese mit seitlichen Gelenken und breiten Klettgurten. Von vorne betrachtet ist die Orthese rechts im Bild. Die Orthese sitzt glaubwürdig über Strumpfhose oder Leggings.
+Linkes Bein der Person trägt eine schwarze/dunkelblaue Bauerfeind-ähnliche Knieorthese mit seitlichen Gelenken und breiten Klettgurten. Aus Blickrichtung der Kamera ist die Orthese links im Bild. Die Orthese sitzt glaubwürdig über Strumpfhose oder Leggings.
 
 ## Kleidung
 Moderne Alltagskleidung: Shorts, Strumpfhose oder Leggings, T-Shirt/Top/Blazer je nach Briefing. Keine Kleidung nur zum Verstecken. Hilfsmittel dürfen sichtbar sein, aber nicht künstlich inszeniert.

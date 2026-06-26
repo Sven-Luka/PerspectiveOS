@@ -11,6 +11,7 @@ except ImportError:
     from core.storage import slugify
 from .artifacts import ProductionArtifactGenerator
 from .models import ProductionFolder, ProductionRequest
+from .review import ProductionReviewer
 
 
 class ProductionFolderPipeline:
@@ -25,6 +26,7 @@ class ProductionFolderPipeline:
         self.knowledge = knowledge
         self.settings = settings or ProjectSettings()
         self.artifacts = ProductionArtifactGenerator(knowledge)
+        self.reviewer = ProductionReviewer(knowledge)
 
     def create(self, request: ProductionRequest) -> ProductionFolder:
         """Create a dated production folder and write all generated artifacts."""
@@ -33,6 +35,9 @@ class ProductionFolderPipeline:
         folder_path.mkdir(parents=True, exist_ok=True)
 
         files = self.artifacts.generate_all(request)
+        review = self.reviewer.review(files)
+        files["automation_review.md"] = review.to_markdown()
+        files["automation_review.json"] = review.to_json()
         for file_name, content in files.items():
             self._write(folder_path / file_name, content)
 

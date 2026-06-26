@@ -2,7 +2,7 @@
 
 ## Pflicht
 - Orthese am linken Bein der Person
-- von vorne betrachtet erscheint sie rechts im Bild
+- aus Blickrichtung der Kamera erscheint sie links im Bild
 - Bauerfeind-ähnliche Knieorthese
 - schwarzer/dunkelblauer textiler Körper
 - seitliche Gelenke

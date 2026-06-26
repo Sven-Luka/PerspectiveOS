@@ -17,7 +17,9 @@ class ProjectSettings:
         "creative/LanguageBible.md",
         "creative/MetaphorLibrary.md",
         "visual/DesignSystem.md",
+        "visual/CarouselSystem.md",
         "visual/PhotoStyle.md",
+        "prompts/image/master_image_prompt.md",
         "persona/Character.md",
         "persona/Incontinence.md",
         "persona/Orthosis.md",
@@ -27,6 +29,7 @@ class ProjectSettings:
         "creative/CreatorBible.md",
         "creative/LanguageBible.md",
         "visual/DesignSystem.md",
+        "visual/CarouselSystem.md",
         "persona/Character.md",
         "persona/Incontinence.md",
         "persona/Orthosis.md",
@@ -47,3 +50,8 @@ class ProjectSettings:
     def analytics_dir(self) -> Path:
         """Return the local Studio analytics storage directory."""
         return self.studio_root / self.analytics_dir_name
+
+    @property
+    def validated_posts_dir(self) -> Path:
+        """Return the curated local library of highly rated production outputs."""
+        return self.analytics_dir / "validated_posts"

@@ -5,10 +5,28 @@ try:
     from ..brain.index import IndexedKnowledge
     from ..core.knowledge import blockquotes, bullets, first_sentence
     from ..creative.brief_generator import BriefGenerator, TOPIC_PROFILES
+    from ..creative.caption_engine import CaptionEngine
+    from ..creative.carousel_engine import CarouselEngine
+    from ..creative.comment_engine import CommentEngine
+    from ..creative.context import CreativeInputs
+    from ..creative.hook_engine import HookEngine
+    from ..creative.story_engine import StoryEngine
+    from ..image.prompt_contract import ImagePromptContractBuilder, render_image_prompt_contract
+    from ..image.reference_selector import ReferenceSelector
+    from .free_story import FreeStoryBrief
 except ImportError:
     from brain.index import IndexedKnowledge
     from core.knowledge import blockquotes, bullets, first_sentence
     from creative.brief_generator import BriefGenerator, TOPIC_PROFILES
+    from creative.caption_engine import CaptionEngine
+    from creative.carousel_engine import CarouselEngine
+    from creative.comment_engine import CommentEngine
+    from creative.context import CreativeInputs
+    from creative.hook_engine import HookEngine
+    from creative.story_engine import StoryEngine
+    from image.prompt_contract import ImagePromptContractBuilder, render_image_prompt_contract
+    from image.reference_selector import ReferenceSelector
+    from production.free_story import FreeStoryBrief
 from .models import ProductionRequest
 
 
@@ -22,17 +40,66 @@ class ProductionArtifactGenerator:
     def generate_all(self, request: ProductionRequest) -> dict[str, str]:
         """Generate every file required for a production folder."""
         context = self._context(request)
+        inputs = self._inputs(request)
+        story_brief = FreeStoryBrief(request.free_story)
+        carousel = story_brief.carousel_markdown(request.format_name) or CarouselEngine(self.knowledge).generate(inputs)
+        image_prompt = self.image_prompt(context)
+        if story_brief.is_present:
+            image_prompt = f"{image_prompt}\n\n{story_brief.prompt_addendum()}"
         files = {
             "brief.md": self.brief(context, request),
-            "caption.md": self.caption(context),
-            "carousel.md": self.carousel(context),
-            "image_prompt.md": self.image_prompt(context),
+            "hooks.md": HookEngine(self.knowledge).generate(inputs),
+            "caption.md": CaptionEngine(self.knowledge).generate(inputs),
+            "carousel.md": carousel,
+            "image_contract.md": self.image_contract(),
+            "reference_manifest.md": self.reference_manifest(context),
+            "reference_manifest.json": self.reference_manifest_json(context),
+            "image_prompt.md": image_prompt,
             "video_prompt.md": self.video_prompt(context),
-            "comments.md": self.comments(context),
+            "comments.md": CommentEngine(self.knowledge).generate(inputs),
+            "story.md": StoryEngine(self.knowledge).generate(inputs),
             "checklist.md": self.checklist(context),
             "metadata.json": self.metadata(context),
         }
+        if story_brief.is_present:
+            files["story_source.md"] = f"# Creator Story Source\n\n{story_brief.source}\n"
+        if request.include_outfit_tip:
+            files["outfit_tip.md"] = self.outfit_tip(context, request.outfit_source_url)
         return files
+
+    def outfit_tip(self, context: dict[str, str], source_url: str) -> str:
+        """Create an occasional, clearly disclosed outfit recommendation artifact."""
+        source = source_url.strip() or "No source URL supplied. Add only a verified product link before publishing."
+        return f"""# Outfit Tip
+
+## Editorial Role
+Use this as an occasional practical add-on, not as the main point of the post. The outfit supports the story: {context["outfit"]}.
+
+## Story Integration
+Show the item in a natural outfit or preparation moment. Explain why it is comfortable, workable with the orthosis, or useful in everyday movement. Do not turn the post into a product catalogue.
+
+## Source
+{source}
+
+## Publishing Guardrails
+- Use only a personally checked and current source.
+- Mark affiliate or advertising links transparently where required.
+- Keep a clear distinction between personal recommendation and medical advice.
+- Schedule this format sparingly: normally no more than one outfit/source post in five regular posts.
+"""
+
+    def _inputs(self, request: ProductionRequest) -> CreativeInputs:
+        """Convert a production request into creative engine inputs."""
+        return CreativeInputs(
+            topic=request.topic,
+            target_emotion=request.target_emotion,
+            image_type=request.image_type,
+            location=request.location,
+            outfit=request.outfit,
+            aid_visibility=request.aid_visibility,
+            metaphor=request.metaphor,
+            format_name=request.format_name,
+        )
 
     def brief(self, context: dict[str, str], request: ProductionRequest) -> str:
         """Generate the main production brief artifact with v0.3 context fields."""
@@ -103,24 +170,87 @@ CTA: {context["cta"]}
 
     def image_prompt(self, context: dict[str, str]) -> str:
         """Generate the image prompt artifact."""
-        return f"""# Image Prompt
+        contract = ImagePromptContractBuilder(self.knowledge).build()
+        return render_image_prompt_contract(
+            contract,
+            format_name=context["format_name"],
+            scene=context["scene"],
+            location=context["location"],
+            outfit=context["outfit"],
+            aid_visibility=context["aid_visibility"],
+            metaphor=context["metaphor"],
+            metaphor_line=context["metaphor_line"],
+        )
 
-Create a Perspective OS visual in {context["format_name"]}.
+    def image_contract(self) -> str:
+        """Generate the explicit image contract used by the prompt and review gate."""
+        contract = ImagePromptContractBuilder(self.knowledge).build()
+        return f"""# Image Contract
 
-Scene: {context["scene"]}
-Location: {context["location"]}
-Outfit: {context["outfit"]}
-Aid visibility: {context["aid_visibility"]}
-Metaphor direction: {context["metaphor"]} - {context["metaphor_line"]}
+This file is the deterministic source contract for image generation. The image prompt must preserve these values.
 
-Character rules: {context["character_base"]}
-Orthosis rules: {context["orthosis_rules"]}
-Incontinence rules: {context["incontinence_rules"]}
-Visual rules: {context["format_rules"]}; {context["layout_rules"]}
-Photo style: {context["photo_perspectives"]}
+## Character Body
+{_markdown_bullets(contract.character_body)}
 
-The person leads. Assistive devices accompany. No pity framing, no shock image, no fetishized or voyeuristic angle.
+## Character Hair
+{_markdown_bullets(contract.character_hair)}
+
+## Character Face
+{_markdown_bullets(contract.character_face)}
+
+## Character Pose
+{_markdown_bullets(contract.character_pose)}
+
+## Orthosis Required
+{_markdown_bullets(contract.orthosis_required)}
+
+## Orthosis Not Allowed
+{_markdown_bullets(contract.orthosis_forbidden)}
+
+## Format
+{_markdown_bullets(contract.design_format)}
+
+## Style
+{_markdown_bullets(contract.design_style)}
+
+## Layout
+{_markdown_bullets(contract.design_layout)}
+
+## Text Rules
+{_markdown_bullets(contract.design_text_rules)}
+
+## Carousel Guard
+- {contract.carousel_standard}
+- {contract.carousel_rule}
+
+## Photo Perspectives
+{_markdown_bullets(contract.photo_perspectives)}
+
+## Required Prompt Terms
+{_markdown_bullets(list(contract.required_terms))}
 """
+
+    def reference_manifest(self, context: dict[str, str]) -> str:
+        """Generate the selected visual reference manifest for this production run."""
+        selector = ReferenceSelector()
+        references = selector.select(
+            topic=context["topic"],
+            location=context["location"],
+            outfit=context["outfit"],
+            aid_visibility=context["aid_visibility"],
+        )
+        return selector.manifest_markdown(references)
+
+    def reference_manifest_json(self, context: dict[str, str]) -> str:
+        """Generate machine-readable selected reference metadata."""
+        selector = ReferenceSelector()
+        references = selector.select(
+            topic=context["topic"],
+            location=context["location"],
+            outfit=context["outfit"],
+            aid_visibility=context["aid_visibility"],
+        )
+        return selector.manifest_json(references)
 
     def video_prompt(self, context: dict[str, str]) -> str:
         """Generate the video prompt artifact."""
@@ -278,6 +408,12 @@ def _first_quote(content: str, heading: str, fallback: str) -> str:
 
 def _join_or_default(values: list[str], fallback: str) -> str:
     return ", ".join(values) if values else fallback
+
+
+def _markdown_bullets(values: list[str]) -> str:
+    if not values:
+        return "- No source values found."
+    return "\n".join(f"- {value}" for value in values)
 
 
 def _metaphor_for_topic(content: str, metaphor: str) -> str:
