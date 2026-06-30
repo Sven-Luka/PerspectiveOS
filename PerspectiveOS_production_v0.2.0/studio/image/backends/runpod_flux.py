@@ -35,6 +35,9 @@ class RunPodFluxBackend(ImageBackend):
         *,
         steps: int = 20,
         guidance: float = 3.5,
+        lora_name: str | None = None,
+        lora_strength: float = 0.9,
+        trigger: str = "j0na",
         poll_interval: float = 5.0,
         max_polls: int = 60,
         timeout: float = 300.0,
@@ -50,6 +53,11 @@ class RunPodFluxBackend(ImageBackend):
         self.api_key = api_key
         self.steps = steps
         self.guidance = guidance
+        # Optional persona LoRA on the network volume (/workspace/models/loras/<name>).
+        # When set, a LoraLoaderModelOnly node is inserted and the trigger word is prepended.
+        self.lora_name = lora_name or None
+        self.lora_strength = lora_strength
+        self.trigger = trigger
         self.poll_interval = poll_interval
         self.max_polls = max_polls
         self.timeout = timeout
@@ -63,6 +71,8 @@ class RunPodFluxBackend(ImageBackend):
                 f"[runpod_flux] note: {len(reference_paths)} reference image(s) ignored "
                 "(text-to-image; reference conditioning is Phase 3)."
             )
+        if self.lora_name and self.trigger and self.trigger.lower() not in prompt.lower():
+            prompt = f"{self.trigger}, {prompt}"
         width, height = self._parse_size(size)
         workflow = self._build_workflow(prompt, width, height, random.randint(1, 2**31 - 1))
         return self._run(workflow)
@@ -78,7 +88,10 @@ class RunPodFluxBackend(ImageBackend):
         return (w // 16) * 16, (h // 16) * 16
 
     def _build_workflow(self, prompt: str, width: int, height: int, seed: int) -> dict:
-        return {
+        # The diffusion model feeding the guider/scheduler. With a LoRA we route the
+        # UNET through LoraLoaderModelOnly (a ComfyUI core node) first.
+        model_ref = ["12", 0]
+        workflow = {
             "5": {"class_type": "EmptyLatentImage",
                   "inputs": {"width": width, "height": height, "batch_size": 1}},
             "6": {"class_type": "CLIPTextEncode",
@@ -99,13 +112,19 @@ class RunPodFluxBackend(ImageBackend):
                    "inputs": {"noise": ["25", 0], "guider": ["22", 0], "sampler": ["16", 0],
                               "sigmas": ["17", 0], "latent_image": ["5", 0]}},
             "16": {"class_type": "KSamplerSelect", "inputs": {"sampler_name": "euler"}},
-            "17": {"class_type": "BasicScheduler",
-                   "inputs": {"scheduler": "sgm_uniform", "steps": self.steps, "denoise": 1,
-                              "model": ["12", 0]}},
-            "22": {"class_type": "BasicGuider",
-                   "inputs": {"model": ["12", 0], "conditioning": ["26", 0]}},
             "25": {"class_type": "RandomNoise", "inputs": {"noise_seed": seed}},
         }
+        if self.lora_name:
+            workflow["30"] = {"class_type": "LoraLoaderModelOnly",
+                              "inputs": {"model": ["12", 0], "lora_name": self.lora_name,
+                                         "strength_model": self.lora_strength}}
+            model_ref = ["30", 0]
+        workflow["17"] = {"class_type": "BasicScheduler",
+                          "inputs": {"scheduler": "sgm_uniform", "steps": self.steps,
+                                     "denoise": 1, "model": model_ref}}
+        workflow["22"] = {"class_type": "BasicGuider",
+                          "inputs": {"model": model_ref, "conditioning": ["26", 0]}}
+        return workflow
 
     def _headers(self) -> dict:
         return {"Authorization": f"Bearer {self.api_key}",

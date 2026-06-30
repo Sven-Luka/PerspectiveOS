@@ -31,5 +31,14 @@ def get_backend(name: str | None, *, openai_api_key: str | None = None) -> Image
                 "Image backend 'runpod_flux' selected but RUNPOD_FLUX_ENDPOINT / RUNPOD_API_KEY "
                 "are not set in the environment."
             )
-        return RunPodFluxBackend(api_key=api_key, endpoint=endpoint)
+        lora_name = os.environ.get("FLUX_LORA_NAME") or None
+        try:
+            lora_strength = float(os.environ.get("FLUX_LORA_STRENGTH", "0.9"))
+        except ValueError:
+            lora_strength = 0.9
+        trigger = os.environ.get("FLUX_LORA_TRIGGER", "j0na")
+        return RunPodFluxBackend(
+            api_key=api_key, endpoint=endpoint,
+            lora_name=lora_name, lora_strength=lora_strength, trigger=trigger,
+        )
     return OpenAIImageBackend(api_key=openai_api_key or "")
