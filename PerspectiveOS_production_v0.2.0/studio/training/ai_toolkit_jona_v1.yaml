@@ -1,0 +1,68 @@
+# ai-toolkit (ostris) — Persona-LoRA "j0na" auf FLUX.1-dev
+# Auf einem RunPod-GPU-Pod in EU-SE-1 mit gemountetem Volume (/workspace) ausfuehren.
+# Output-LoRA landet unter:
+#   /workspace/ai-toolkit-output/perspective_jona_v1/perspective_jona_v1.safetensors
+# Danach nach /workspace/models/loras/perspective_jona_v1.safetensors kopieren
+# (das ist der Ordner, den der ComfyUI-Worker liest).
+---
+job: extension
+config:
+  name: perspective_jona_v1
+  process:
+    - type: sd_trainer
+      training_folder: /workspace/ai-toolkit-output
+      device: cuda:0
+      trigger_word: j0na
+
+      network:
+        type: lora
+        linear: 16          # Rank
+        linear_alpha: 16
+
+      save:
+        dtype: float16
+        save_every: 500
+        max_step_saves_to_keep: 4
+
+      datasets:
+        - folder_path: /workspace/dataset/jona   # 16 Bilder + .txt-Captions
+          caption_ext: txt
+          caption_dropout_rate: 0.05
+          shuffle_tokens: false
+          cache_latents_to_disk: true
+          resolution: [512, 768, 1024]
+
+      train:
+        batch_size: 1
+        steps: 2500
+        gradient_accumulation_steps: 1
+        train_unet: true
+        train_text_encoder: false      # Flux: Text-Encoder nicht mittrainieren
+        gradient_checkpointing: true
+        noise_scheduler: flowmatch
+        optimizer: adamw8bit
+        lr: 1e-4
+        dtype: bf16
+
+      model:
+        name_or_path: black-forest-labs/FLUX.1-dev   # gated -> HF-Token noetig
+        is_flux: true
+        quantize: true                  # passt in 24 GB VRAM
+
+      sample:
+        sampler: flowmatch
+        sample_every: 500
+        width: 1024
+        height: 1024
+        guidance_scale: 3.5
+        sample_steps: 20
+        seed: 42
+        walk_seed: true
+        neg: ""
+        prompts:
+          - "j0na, androgynous person, black polo and black tights, blue knee orthosis on left leg, on a train station platform, rear view, documentary photo, face not visible"
+          - "j0na, androgynous person, black polo and black shorts, blue knee orthosis on left leg, walking, side view, face not visible"
+
+meta:
+  name: perspective_jona_v1
+  version: '1.0'
