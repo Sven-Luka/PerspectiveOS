@@ -1,6 +1,8 @@
 import json
 import os
 import re
+from dataclasses import replace
+from pathlib import Path
 
 import streamlit as st
 
@@ -9,7 +11,9 @@ try:
     from .core.config import AID_VISIBILITY_OPTIONS, FORMAT_OPTIONS, IMAGE_TYPES, TARGET_EMOTIONS, TOPICS
     from .core.knowledge import bullets, load_repository_knowledge
     from .core.settings import ProjectSettings
+    from .core.tights import BAND_RELATIONS, TIGHTS_DEN, band_relation_phrase, tights_phrase
     from .image import ImageGenerationError
+    from .image.layout_composer import LayoutComposer, LayoutContent
     from .image.prompt_contract import ImagePromptContractBuilder
     from .image.reference_selector import ReferenceSelector
     from .image.visual_agent import VisualAgent
@@ -20,7 +24,9 @@ except ImportError:
     from core.config import AID_VISIBILITY_OPTIONS, FORMAT_OPTIONS, IMAGE_TYPES, TARGET_EMOTIONS, TOPICS
     from core.knowledge import bullets, load_repository_knowledge
     from core.settings import ProjectSettings
+    from core.tights import BAND_RELATIONS, TIGHTS_DEN, band_relation_phrase, tights_phrase
     from image import ImageGenerationError
+    from image.layout_composer import LayoutComposer, LayoutContent
     from image.prompt_contract import ImagePromptContractBuilder
     from image.reference_selector import ReferenceSelector
     from image.visual_agent import VisualAgent
@@ -93,8 +99,20 @@ with st.sidebar:
         "OpenAI API key",
         value="",
         type="password",
-        help="Used for gpt-image-1. Leave empty to use the OPENAI_API_KEY environment variable.",
+        help="Used for GPT prompts/review and gpt-image-1. Leave empty to use the OPENAI_API_KEY environment variable.",
     )
+
+    backend_choice = st.selectbox(
+        "Image backend",
+        ["openai", "runpod_flux"],
+        help="openai = gpt-image-1 (content-moderated). runpod_flux = RunPod ComfyUI/Flux (no prefilter).",
+    )
+    os.environ["IMAGE_BACKEND"] = backend_choice
+    if backend_choice == "runpod_flux":
+        if os.environ.get("RUNPOD_API_KEY") and os.environ.get("RUNPOD_FLUX_ENDPOINT"):
+            st.caption("RunPod Flux endpoint loaded from environment.")
+        else:
+            st.warning("Set RUNPOD_API_KEY and RUNPOD_FLUX_ENDPOINT in the environment.")
 
 st.title("Perspective Studio")
 st.divider()
@@ -111,6 +129,20 @@ with st.form("create_new_post"):
     image_type = st.selectbox("Image Type", IMAGE_TYPES)
     location = st.text_input("Location")
     outfit = st.text_input("Outfit", key="outfit_input")
+    tights_color = st.selectbox("Strumpfhose – Farbe", ["schwarz", "weiß", "hautfarben (Glanz)"])
+    tights_den = st.selectbox(
+        "Strumpfhose – DEN",
+        TIGHTS_DEN,
+        index=TIGHTS_DEN.index(20),
+        help="Niedriger DEN = transparenter ⇒ Windelbund/blaue Schiene schimmern stärker durch. "
+        "Höher = blickdicht. Weiß wirkt bei gleichem DEN deckender als Schwarz.",
+    )
+    band_relation = st.selectbox(
+        "Bund-Verhältnis (Strumpfhose vs. Windel)",
+        BAND_RELATIONS,
+        help="Fall A: Strumpfhosenbund höher, Windelbund schimmert darunter durch. "
+        "Fall B: Strumpfhosenbund tiefer, der weiße Windelbund schaut oben direkt heraus.",
+    )
     aid_visibility = st.selectbox("Aid visibility", AID_VISIBILITY_OPTIONS, index=3)
     metaphor = st.text_input("Metaphor", key="metaphor_input")
     format_name = st.selectbox("Format", FORMAT_OPTIONS)
@@ -248,13 +280,20 @@ def _metadata_payload(files: dict[str, str]) -> dict[str, object]:
 
 
 if submitted:
+    show_diaper = aid_visibility in ("diaper", "both")
+    outfit_full = ", ".join(
+        part for part in [outfit.strip(), tights_phrase(tights_den, tights_color, show_diaper)] if part
+    )
+    # The diaper-vs-tights waistband layering only matters when the diaper is shown on the body.
+    band_phrase = band_relation_phrase(band_relation) if aid_visibility in ("diaper", "both") else ""
+    aid_visibility_full = ". ".join(part for part in [aid_visibility, band_phrase] if part)
     request = ProductionRequest(
         topic=topic,
         target_emotion=target_emotion,
         image_type=image_type,
         location=location,
-        outfit=outfit,
-        aid_visibility=aid_visibility,
+        outfit=outfit_full,
+        aid_visibility=aid_visibility_full,
         metaphor=metaphor,
         format_name=format_name,
         free_story=free_story,
@@ -367,7 +406,10 @@ if production_folder is not None:
 
     st.divider()
     st.header("Generate Image")
-    st.markdown("Uses the `image_prompt.md` from this folder with OpenAI gpt-image-1.")
+    st.markdown(
+        "Uses the `image_prompt.md` from this folder with the selected image backend "
+        "(OpenAI gpt-image-1 or RunPod/Flux — see sidebar)."
+    )
 
     with st.expander("Image prompt", expanded=False):
         st.markdown(_artifact_content(production_folder.files, "image_prompt.md"))
@@ -401,12 +443,16 @@ if production_folder is not None:
                     ).read_text(encoding="utf-8")
                     st.session_state["generated_image"] = result.image
                     st.session_state["composed_layout"] = result.layout
-                    st.session_state["carousel_layouts"] = result.carousel_layouts
+                    st.session_state["carousel_layouts"] = list(result.carousel_layouts)
+                    st.session_state["slide_contents"] = list(result.slide_contents)
+                    st.session_state["base_image_paths"] = [str(p) for p in result.base_image_paths]
                     st.session_state["visual_agent_review"] = result.review
                 except ImageGenerationError as error:
                     st.session_state.pop("generated_image", None)
                     st.session_state.pop("composed_layout", None)
                     st.session_state.pop("carousel_layouts", None)
+                    st.session_state.pop("slide_contents", None)
+                    st.session_state.pop("base_image_paths", None)
                     st.session_state.pop("visual_agent_review", None)
                     st.error(str(error))
 
@@ -421,13 +467,59 @@ if production_folder is not None:
         if composed_layout is not None:
             st.success(f"First carousel slide saved: {composed_layout.relative_path}")
         carousel_layouts = st.session_state.get("carousel_layouts", [])
-        for index, layout in enumerate(carousel_layouts, start=1):
+        slide_contents = st.session_state.get("slide_contents", [])
+        base_paths = st.session_state.get("base_image_paths", [])
+        editable = (
+            len(slide_contents) == len(carousel_layouts)
+            and len(base_paths) == len(carousel_layouts)
+            and len(carousel_layouts) > 0
+        )
+        if editable:
+            st.caption(
+                "Text und Herz pro Slide anpassbar - 'Aktualisieren' baut nur das Overlay neu, "
+                "ohne ein neues Bild zu generieren."
+            )
+        for index, layout in enumerate(carousel_layouts):
             st.image(layout.image_bytes)
+            if editable:
+                content = slide_contents[index]
+                with st.expander(f"Text & Herz bearbeiten - Slide {index + 1}", expanded=False):
+                    key = f"edit_{index}"
+                    new_series = st.text_input("Label (oben)", value=content.series_label, key=f"{key}_series")
+                    new_headline = st.text_input("Headline", value=content.headline, key=f"{key}_head")
+                    new_highlight = st.text_input("Highlight", value=content.highlight, key=f"{key}_high")
+                    new_body = st.text_input("Fliesstext (nur Detail-Slides)", value=content.body_text, key=f"{key}_body")
+                    new_icons = st.text_input(
+                        "Badge-Icons (Komma-getrennt)", value=", ".join(content.icon_labels), key=f"{key}_icons"
+                    )
+                    new_heart = st.checkbox("Gelbes Herz oben anzeigen", value=content.show_heart, key=f"{key}_heart")
+                    if st.button("Aktualisieren", key=f"{key}_update"):
+                        updated = replace(
+                            content,
+                            series_label=new_series,
+                            headline=new_headline,
+                            highlight=new_highlight,
+                            body_text=new_body,
+                            icon_labels=tuple(part.strip() for part in new_icons.split(",") if part.strip()),
+                            show_heart=new_heart,
+                        )
+                        folder_path = settings.generated_dir / production_folder.folder_name
+                        recomposed = LayoutComposer(settings).compose_feed_slide(
+                            source_image=Path(base_paths[index]),
+                            folder_path=folder_path,
+                            content=updated,
+                            file_name=layout.file_name,
+                            repository_root=settings.repository_root,
+                        )
+                        st.session_state["carousel_layouts"][index] = recomposed
+                        st.session_state["slide_contents"][index] = updated
+                        st.rerun()
             st.download_button(
-                f"Download carousel slide {index}",
+                f"Download carousel slide {index + 1}",
                 data=layout.image_bytes,
                 file_name=layout.file_name,
                 mime="image/png",
+                key=f"dl_slide_{index}",
             )
         st.download_button(
             f"Download {generated_image.file_name}",

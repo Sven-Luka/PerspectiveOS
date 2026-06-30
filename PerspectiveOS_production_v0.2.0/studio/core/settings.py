@@ -11,6 +11,9 @@ class ProjectSettings:
     generated_dir_name: str = "generated"
     assets_dir_name: str = "assets"
     analytics_dir_name: str = "analytics_data"
+    # Image generation backend: "openai" (gpt-image-1) or "runpod_flux" (RunPod ComfyUI/Flux).
+    # Overridable at runtime via the IMAGE_BACKEND env var.
+    image_backend: str = "openai"
     markdown_glob: str = "**/*.md"
     required_knowledge_documents: tuple[str, ...] = (
         "creative/CreatorBible.md",
@@ -24,6 +27,7 @@ class ProjectSettings:
         "persona/Incontinence.md",
         "persona/Orthosis.md",
         "persona/OutfitGuide.md",
+        "persona/TightsGuide.md",
     )
     index_documents: tuple[str, ...] = (
         "creative/CreatorBible.md",
