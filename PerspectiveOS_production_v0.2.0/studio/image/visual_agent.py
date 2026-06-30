@@ -12,6 +12,7 @@ except ImportError:
 
 from .generator import DEFAULT_SIZE, FORMAT_SIZES, GeneratedImage
 from .backends import get_backend
+from .postprocess import ensure_orthosis_left
 from .layout_composer import ComposedLayout, LayoutComposer, LayoutContent
 from .prompt_contract import ImagePromptContractBuilder
 from .reference_selector import ReferenceImage, ReferenceSelector
@@ -50,6 +51,12 @@ class VisualAgent:
             self.settings, "image_backend", "openai"
         )
         self.backend = get_backend(backend_name, openai_api_key=api_key)
+        # Opt-in orthosis-side auto-correct: detect the braced leg and mirror the base
+        # photo when it lands on the wrong (anatomical right) leg. Default off.
+        self.fix_orthosis_side = os.environ.get("FIX_ORTHOSIS_SIDE", "").lower() in (
+            "1", "true", "yes", "on",
+        )
+        self.vision_model = os.environ.get("OPENAI_VISION_REVIEW_MODEL", "gpt-5.5")
         self.composer = LayoutComposer(self.settings)
         self.contract_builder = ImagePromptContractBuilder(knowledge)
         self.reviewer = VisionReviewer(api_key=api_key)
@@ -356,6 +363,11 @@ class VisualAgent:
             reference_paths=existing_references,
             size=size,
         )
+
+        # Mirror the base photo if the orthosis came out on the wrong leg (diffusion
+        # gets left/right ~50% wrong; mirroring is the deterministic fix, not re-rolling).
+        if self.fix_orthosis_side and self.api_key:
+            image_bytes, _ = ensure_orthosis_left(image_bytes, self.api_key, self.vision_model)
 
         folder_path.mkdir(parents=True, exist_ok=True)
         image_path = folder_path / file_name
