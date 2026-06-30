@@ -73,9 +73,19 @@ class ReferenceSelector:
             seen_paths.add(path)
             selected.append(self._reference(record, score))
 
+        required_prefixes = ("layouts/", "character/", "orthosis/")
+        request_text = f"{topic} {location} {outfit} {aid_visibility}".lower()
+        if any(
+            term in request_text
+            for term in ("windel", "diaper", "incontinence", "inkontinenz", "tena", "slip", "bund", "saugkern")
+        ):
+            # When the post is about the incontinence product, guarantee both a
+            # worn-on-body and a standalone TENA reference make it into the set.
+            required_prefixes = required_prefixes + ("diapers/tena_worn", "diapers/tena_product")
+
         return _with_required_groups(
             sorted(selected, key=lambda item: item.score, reverse=True),
-            required_prefixes=("layouts/", "character/", "orthosis/"),
+            required_prefixes=required_prefixes,
             limit=limit,
         )
 
@@ -147,7 +157,13 @@ class ReferenceSelector:
             score += 15
         if "diapers/" in category and any(term in request_text for term in ("diaper", "incontinence", "windel")):
             score += 35
+        if "diapers/tena" in category:
+            score += 12  # prefer the curated TENA set over older generic diaper refs
         if "train" in category and any(term in request_text for term in ("zug", "bahn", "train")):
+            score += 35
+        if "bahnhof" in category and any(
+            term in request_text for term in ("bahnhof", "bahnsteig", "gleis", "station", "perron")
+        ):
             score += 35
         if "home_office" in category and any(term in request_text for term in ("wohnung", "zuhause", "home")):
             score += 25
